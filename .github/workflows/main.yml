@@ -1,0 +1,60 @@
+name: Build RBook APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Extract project
+        run: |
+          mkdir project
+          unzip -o rbook-full-project.zip -d project
+
+      - name: Find project folder
+        run: |
+          echo "Searching for package.json..."
+          find project -name package.json -print
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        working-directory: project
+        run: npm install
+
+      - name: Build project
+        working-directory: project
+        run: npm run build
+
+      - name: Capacitor sync
+        working-directory: project
+        run: npx cap sync android
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Build APK
+        working-directory: project/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: RBook-APK
+          path: project/android/app/build/outputs/apk/debug/app-debug.apk
