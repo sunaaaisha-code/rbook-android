@@ -16,29 +16,34 @@ jobs:
 
       - name: Extract project
         run: |
-          mkdir project
+          mkdir -p project
           unzip -o rbook-full-project.zip -d project
 
       - name: Find project folder
         run: |
-          echo "Searching for package.json..."
-          find project -name package.json -print
+          PROJECT_DIR=$(find project -name package.json -not -path "*/node_modules/*" -printf '%h\n' | head -n 1)
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $GITHUB_ENV
+          echo "Project folder: $PROJECT_DIR"
 
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install dependencies
-        working-directory: project
+        working-directory: ${{ env.PROJECT_DIR }}
         run: npm install
 
       - name: Build project
-        working-directory: project
+        working-directory: ${{ env.PROJECT_DIR }}
         run: npm run build
 
+      - name: Install Capacitor CLI
+        working-directory: ${{ env.PROJECT_DIR }}
+        run: npm install @capacitor/cli@latest
+
       - name: Capacitor sync
-        working-directory: project
+        working-directory: ${{ env.PROJECT_DIR }}
         run: npx cap sync android
 
       - name: Setup Java
@@ -48,7 +53,7 @@ jobs:
           java-version: 17
 
       - name: Build APK
-        working-directory: project/android
+        working-directory: ${{ env.PROJECT_DIR }}/android
         run: |
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -57,4 +62,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RBook-APK
-          path: project/android/app/build/outputs/apk/debug/app-debug.apk
+          path: ${{ env.PROJECT_DIR }}/android/app/build/outputs/apk/debug/app-debug.apk
